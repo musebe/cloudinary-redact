@@ -15,6 +15,10 @@ export function getConfigurationStatus() {
 
   return {
     cloudinaryConfigured,
+    reviewSessionConfigured: Boolean(
+      process.env.DEMO_SESSION_SECRET &&
+        process.env.DEMO_SESSION_SECRET.length >= 32,
+    ),
     ocrMode: process.env.CLOUDINARY_OCR_MODE || DEFAULT_OCR_MODE,
     maxUploadBytes: readPositiveInteger(
       process.env.MAX_UPLOAD_BYTES,
@@ -27,15 +31,20 @@ export function getRuntimeConfig() {
   const cloudName = process.env.CLOUDINARY_CLOUD_NAME
   const apiKey = process.env.CLOUDINARY_API_KEY
   const apiSecret = process.env.CLOUDINARY_API_SECRET
+  const sessionSecret = process.env.DEMO_SESSION_SECRET
 
-  if (!cloudName || !apiKey || !apiSecret) {
-    throw new Error('Cloudinary server credentials are not configured.')
+  if (!cloudName || !apiKey || !apiSecret || !sessionSecret) {
+    throw new Error('Server processing is not configured.')
+  }
+  if (sessionSecret.length < 32) {
+    throw new Error('The review-session secret must be at least 32 characters.')
   }
 
   return {
     cloudName,
     apiKey,
     apiSecret,
+    sessionSecret,
     ocrMode: process.env.CLOUDINARY_OCR_MODE || DEFAULT_OCR_MODE,
     maxUploadBytes: readPositiveInteger(
       process.env.MAX_UPLOAD_BYTES,

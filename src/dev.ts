@@ -10,6 +10,7 @@ const port = Number(process.env.PORT || 3000)
 const localApp = new Hono()
 
 localApp.use('/styles.css', serveStatic({ path: './public/styles.css' }))
+localApp.use('/app.js', serveStatic({ path: './public/app.js' }))
 localApp.route('/', app)
 
 serve({ fetch: localApp.fetch, port }, (info) => {

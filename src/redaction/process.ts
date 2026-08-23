@@ -23,6 +23,11 @@ export async function processScreenshot(options: {
     uploaded.width,
     uploaded.height,
   )
+  if (regions.length > 20) {
+    throw new Error(
+      'Too many sensitive regions were detected for automatic redaction.',
+    )
+  }
   const derivative = await createReviewDerivative({
     publicId: uploaded.publicId,
     regions,

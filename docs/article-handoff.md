@@ -68,4 +68,4 @@ A precision and recall benchmark using a versioned synthetic screenshot dataset.
 
 ## Current proof status
 
-Project name: `cloudinary-redact`. The Hono/Vercel shell, restricted upload route, OCR parser, coordinate mapping, targeted transformations, and classifier baseline are implemented with 11 passing tests. The source-text benchmark covers 20 synthetic screenshots and 16 labeled findings with 100% precision and recall. Credentialed Cloudinary verification, human review, and the end-to-end image benchmark remain.
+Project name: `cloudinary-redact`. The Hono/Vercel shell, restricted upload, OCR parsing, targeted transformation, signed human-review session, approval API, and comparison UI are implemented with 14 passing tests. The source-text benchmark covers 20 synthetic screenshots and 16 labeled findings with 100% precision and recall. Credentialed Cloudinary verification and the end-to-end image benchmark remain.

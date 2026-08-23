@@ -1,19 +1,40 @@
 import { Hono } from 'hono'
+import { getCookie, setCookie } from 'hono/cookie'
 
+import {
+  readRedactionRecord,
+  setReviewDecision,
+} from '../cloudinary/screenshots.js'
 import { getRuntimeConfig } from '../config/env.js'
 import { HttpError } from '../http/errors.js'
 import { processScreenshot } from '../redaction/process.js'
 import { validateScreenshot } from '../security/file.js'
+import {
+  createReviewSession,
+  reviewSessionMaxAge,
+  verifyReviewSession,
+} from '../security/session.js'
 
 export const redactions = new Hono()
 
-redactions.post('/', async (context) => {
-  let config: ReturnType<typeof getRuntimeConfig>
+function requireRuntimeConfig() {
   try {
-    config = getRuntimeConfig()
+    return getRuntimeConfig()
   } catch {
     throw new HttpError(503, 'Cloudinary processing is not configured.')
   }
+}
+
+function requireReviewSession(context: Parameters<typeof getCookie>[0], assetId: string) {
+  const { sessionSecret } = requireRuntimeConfig()
+  const token = getCookie(context, 'redaction_review')
+  if (!verifyReviewSession(token, assetId, sessionSecret)) {
+    throw new HttpError(403, 'The review session is missing or expired.')
+  }
+}
+
+redactions.post('/', async (context) => {
+  const config = requireRuntimeConfig()
 
   const contentLength = Number(context.req.header('content-length') || 0)
   if (contentLength > config.maxUploadBytes + 256_000) {
@@ -43,5 +64,42 @@ redactions.post('/', async (context) => {
     mode,
   })
 
+  setCookie(
+    context,
+    'redaction_review',
+    createReviewSession(result.assetId, config.sessionSecret),
+    {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'Strict',
+      path: `/api/redactions/${result.assetId}`,
+      maxAge: reviewSessionMaxAge,
+    },
+  )
+
   return context.json({ success: true, data: result }, 201)
+})
+
+redactions.get('/:assetId', async (context) => {
+  const assetId = context.req.param('assetId')
+  requireReviewSession(context, assetId)
+  const record = await readRedactionRecord(assetId)
+  const { context: _context, ...publicRecord } = record
+  return context.json({ success: true, data: publicRecord })
+})
+
+redactions.patch('/:assetId/review', async (context) => {
+  const assetId = context.req.param('assetId')
+  requireReviewSession(context, assetId)
+  const body = await context.req.json().catch(() => null) as {
+    decision?: unknown
+  } | null
+
+  if (body?.decision !== 'approve' && body?.decision !== 'reject') {
+    throw new HttpError(400, 'Choose approve or reject.')
+  }
+
+  const record = await setReviewDecision(assetId, body.decision)
+  const { context: _context, ...publicRecord } = record
+  return context.json({ success: true, data: publicRecord })
 })

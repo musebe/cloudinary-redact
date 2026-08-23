@@ -33,4 +33,10 @@ describe('application shell', () => {
       error: 'Cloudinary processing is not configured.',
     })
   })
+
+  test('does not expose review records without server configuration', async () => {
+    const response = await app.request('/api/redactions/test-asset')
+
+    expect(response.status).toBe(503)
+  })
 })

@@ -57,4 +57,4 @@ The project uses one Vercel deployment. Vercel recognizes `src/index.ts` as a Ho
 
 ## Implementation status
 
-`POST /api/redactions` now validates JPEG, PNG, and WebP signatures, enforces the 4 MB boundary, uploads the original with authenticated delivery, requests `adv_ocr`, maps masked sensitive findings to padded OCR rectangles, and eagerly creates a signed blur or pixelation derivative. The engine is covered by tests but still needs a credentialed Cloudinary readback before it can be considered verified end to end.
+`POST /api/redactions` validates JPEG, PNG, and WebP signatures, enforces the 4 MB boundary, uploads the original with authenticated delivery, requests `adv_ocr`, maps masked sensitive findings to padded OCR rectangles, and eagerly creates a signed blur or pixelation derivative. It issues an HTTP-only HMAC-signed review cookie bound to the immutable asset ID. The read and approval routes require that session, read the current Cloudinary record, and persist approved or rejected status in asset context. The engine is covered by tests but still needs a credentialed Cloudinary readback before it can be considered verified end to end.

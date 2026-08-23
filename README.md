@@ -29,8 +29,11 @@ cp .env.example .env
 Add server-only Cloudinary credentials to `.env`, then start the local Hono server:
 
 ```bash
+openssl rand -hex 32
 npm run dev
 ```
+
+Use the generated value for `DEMO_SESSION_SECRET`. It signs an HTTP-only review cookie scoped to the uploaded asset.
 
 Open the application on port `3000`. The health response is available at `/api/health` and never returns credential values.
 
@@ -62,4 +65,4 @@ The application is designed for one Vercel project. Vercel officially supports H
 
 ## Current checkpoint
 
-The Hono/Vercel foundation, sensitive-text classifier, restricted Cloudinary upload engine, OCR parser, coordinate mapper, and targeted transformation builder are complete. Eleven automated tests pass. The source-text baseline contains 20 synthetic screenshot cases and 16 labeled findings with 100% precision and recall. A credentialed Cloudinary run, human review state, and end-to-end image benchmark remain.
+The Hono/Vercel foundation, sensitive-text classifier, restricted Cloudinary upload engine, OCR parser, coordinate mapper, targeted transformation builder, signed review session, approval API, and responsive comparison UI are complete. Fourteen automated tests pass. The source-text baseline contains 20 synthetic screenshot cases and 16 labeled findings with 100% precision and recall. A credentialed Cloudinary run and end-to-end image benchmark remain.

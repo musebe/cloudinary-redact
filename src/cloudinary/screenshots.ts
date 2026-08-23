@@ -15,6 +15,24 @@ export type UploadedScreenshot = {
   height: number
 }
 
+export type ReviewStatus = 'review_required' | 'approved' | 'rejected'
+
+type ContextValues = Record<string, string>
+
+function asRecord(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+  return value as Record<string, unknown>
+}
+
+function readContextValues(value: unknown): ContextValues {
+  const custom = asRecord(asRecord(value).custom)
+  return Object.fromEntries(
+    Object.entries(custom).filter(
+      (entry): entry is [string, string] => typeof entry[1] === 'string',
+    ),
+  )
+}
+
 function safeFilename(filename: string): string {
   return filename.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 120)
 }
@@ -97,6 +115,7 @@ export async function createReviewDerivative(options: {
       redaction_count: String(regions.length),
       redaction_categories: categories.join(','),
       detector_version: '2026-09-06.1',
+      redaction_transform: transformationString,
     },
   })
 
@@ -116,4 +135,73 @@ export async function createReviewDerivative(options: {
     }),
     transformation: transformationString,
   }
+}
+
+export async function readRedactionRecord(assetId: string) {
+  const cloudinary = getCloudinary()
+  const response = await cloudinary.api.resources_by_asset_ids([assetId], {
+    resource_type: 'image',
+    type: 'authenticated',
+    context: true,
+  })
+  const asset = response.resources?.[0]
+
+  if (
+    !asset ||
+    typeof asset.asset_id !== 'string' ||
+    typeof asset.public_id !== 'string' ||
+    !asset.public_id.startsWith('screenshot-redaction/originals/')
+  ) {
+    throw new Error('The redaction record could not be found.')
+  }
+
+  const context = readContextValues(asset.context)
+  const transformation = context.redaction_transform
+  if (!transformation) throw new Error('The redaction evidence is incomplete.')
+
+  return {
+    assetId: asset.asset_id,
+    publicId: asset.public_id,
+    status: (context.redaction_status || 'review_required') as ReviewStatus,
+    mode: context.redaction_mode || 'pixelate',
+    findingCount: Number(context.redaction_count || 0),
+    categories: context.redaction_categories
+      ? context.redaction_categories.split(',').filter(Boolean)
+      : [],
+    originalUrl: cloudinary.url(asset.public_id, {
+      resource_type: 'image',
+      type: 'authenticated',
+      secure: true,
+      sign_url: true,
+    }),
+    redactedUrl: cloudinary.url(asset.public_id, {
+      resource_type: 'image',
+      type: 'authenticated',
+      secure: true,
+      sign_url: true,
+      transformation,
+    }),
+    context,
+  }
+}
+
+export async function setReviewDecision(
+  assetId: string,
+  decision: 'approve' | 'reject',
+) {
+  const record = await readRedactionRecord(assetId)
+  const status: ReviewStatus = decision === 'approve' ? 'approved' : 'rejected'
+  const context = {
+    ...record.context,
+    redaction_status: status,
+    redaction_reviewed_at: new Date().toISOString(),
+  }
+
+  await getCloudinary().uploader.explicit(record.publicId, {
+    resource_type: 'image',
+    type: 'authenticated',
+    context,
+  })
+
+  return { ...record, status }
 }
