@@ -219,10 +219,10 @@ Once Cloudinary confirms the asset, Hono requests Advanced OCR on the authentica
 
 ### Extract words and OCR coordinates
 
-Hono invokes OCR with an authenticated `explicit` operation. The response includes evidence under `info.ocr.adv_ocr`, including detected text and bounding polygons.
+Hono invokes OCR with an authenticated Admin API `update` operation. Cloudinary documents that an `upload` or `update` request with `ocr: "adv_ocr"` returns evidence under `info.ocr.adv_ocr`, including detected text and bounding polygons.
 
 ```typescript
-const ocrResult = await cloudinary.uploader.explicit(publicId, {
+const ocrResult = await cloudinary.api.update(publicId, {
   resource_type: 'image',
   type: 'authenticated',
   ocr: config.ocrMode,
@@ -462,7 +462,7 @@ You can also check service configuration without exposing secrets:
 curl http://localhost:3000/api/health
 ```
 
-The verified project currently passes TypeScript validation and 24 automated tests. The tests cover upload-signature constraints, short-lived claim validation, OCR parsing, sensitive-value detection, redaction geometry, browser behavior, and review authorization. A live Cloudinary test also confirmed authenticated upload, email detection, targeted pixelation, signed original and derivative delivery, and Admin API gallery readback.
+The verified project currently passes TypeScript validation and 25 automated tests. The tests cover upload-signature constraints, short-lived claim validation, OCR readback, sensitive-value detection, redaction geometry, browser behavior, and review authorization. A live Cloudinary test also confirmed authenticated upload, email detection, targeted pixelation, signed original and derivative delivery, and Admin API gallery readback.
 
 ## Security limitations and production hardening
 

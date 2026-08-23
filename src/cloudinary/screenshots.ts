@@ -113,7 +113,7 @@ export async function verifyDirectUpload(
 
 export async function requestScreenshotOcr(publicId: string) {
   const { ocrMode } = getRuntimeConfig()
-  return getCloudinary().uploader.explicit(publicId, {
+  return getCloudinary().api.update(publicId, {
     resource_type: 'image',
     type: 'authenticated',
     ocr: ocrMode,

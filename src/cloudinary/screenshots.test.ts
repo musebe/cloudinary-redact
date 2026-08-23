@@ -4,11 +4,15 @@ import { v2 as cloudinary } from 'cloudinary'
 import {
   buildRedactionTransformation,
   createDirectUploadAuthorization,
+  requestScreenshotOcr,
   SCREENSHOT_ASSET_FOLDER,
   SCREENSHOT_PUBLIC_ID_PREFIX,
 } from './screenshots.js'
 
-afterEach(() => vi.unstubAllEnvs())
+afterEach(() => {
+  vi.restoreAllMocks()
+  vi.unstubAllEnvs()
+})
 
 describe('targeted Cloudinary transformations', () => {
   test('uses one matching Cloudinary asset folder and public ID namespace', () => {
@@ -36,6 +40,28 @@ describe('targeted Cloudinary transformations', () => {
     })
     expect(authorization.parameters).not.toHaveProperty('ocr')
     expect(JSON.stringify(authorization)).not.toContain('server-only-secret')
+  })
+
+  test('requests OCR through an Admin API update so the response includes evidence', async () => {
+    vi.stubEnv('CLOUDINARY_CLOUD_NAME', 'demo-cloud')
+    vi.stubEnv('CLOUDINARY_API_KEY', 'demo-key')
+    vi.stubEnv('CLOUDINARY_API_SECRET', 'server-only-secret')
+    vi.stubEnv('DEMO_SESSION_SECRET', 'a-review-secret-that-is-long-enough')
+    vi.stubEnv('CLOUDINARY_OCR_MODE', 'adv_ocr')
+    const update = vi.spyOn(cloudinary.api, 'update').mockResolvedValue({
+      info: { ocr: { adv_ocr: { status: 'complete', data: [] } } },
+    } as never)
+
+    await requestScreenshotOcr(`${SCREENSHOT_PUBLIC_ID_PREFIX}asset-id`)
+
+    expect(update).toHaveBeenCalledWith(
+      `${SCREENSHOT_PUBLIC_ID_PREFIX}asset-id`,
+      {
+        resource_type: 'image',
+        type: 'authenticated',
+        ocr: 'adv_ocr',
+      },
+    )
   })
 
   test('replays persisted transformation syntax as a raw transformation', () => {
