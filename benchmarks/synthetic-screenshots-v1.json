@@ -1,0 +1,115 @@
+{
+  "dataset": "synthetic-screenshots-v1",
+  "description": "Synthetic support-screen text used to render safe benchmark screenshots.",
+  "cases": [
+    {
+      "id": "email-profile",
+      "lines": ["Customer profile", "Email: maya.chen@example.test", "Plan: Standard"],
+      "expected": [{ "category": "email", "value": "maya.chen@example.test" }]
+    },
+    {
+      "id": "email-alias",
+      "lines": ["Notification failure", "Recipient ops+alerts@example.test", "Retry queued"],
+      "expected": [{ "category": "email", "value": "ops+alerts@example.test" }]
+    },
+    {
+      "id": "phone-kenya",
+      "lines": ["Callback requested", "Phone: +254 712 345 678", "Window: afternoon"],
+      "expected": [{ "category": "phone", "value": "+254 712 345 678" }]
+    },
+    {
+      "id": "phone-us",
+      "lines": ["Contact customer", "Mobile (415) 555-0198", "Consent: yes"],
+      "expected": [{ "category": "phone", "value": "(415) 555-0198" }]
+    },
+    {
+      "id": "account-spaced",
+      "lines": ["Refund review", "Account number: 9988 7766 5544", "Amount: 42.00"],
+      "expected": [{ "category": "account_number", "value": "9988 7766 5544" }]
+    },
+    {
+      "id": "account-compact",
+      "lines": ["Billing lookup", "Acct # 004455667788", "Status: active"],
+      "expected": [{ "category": "account_number", "value": "004455667788" }]
+    },
+    {
+      "id": "account-iban",
+      "lines": ["Transfer details", "GB82 WEST 1234 5698 7654 32", "Currency: GBP"],
+      "expected": [{ "category": "account_number", "value": "GB82 WEST 1234 5698 7654 32" }]
+    },
+    {
+      "id": "key-openai-shape",
+      "lines": ["Environment settings", "API key: sk-test_1234567890abcdefghij", "Mode: sandbox"],
+      "expected": [{ "category": "api_key", "value": "sk-test_1234567890abcdefghij" }]
+    },
+    {
+      "id": "key-aws-shape",
+      "lines": ["Integration credentials", "AKIAIOSFODNN7EXAMPLE", "Region: test-1"],
+      "expected": [{ "category": "api_key", "value": "AKIAIOSFODNN7EXAMPLE" }]
+    },
+    {
+      "id": "key-generic",
+      "lines": ["Webhook setup", "Secret = testSecretValue12345", "Enabled: false"],
+      "expected": [{ "category": "api_key", "value": "testSecretValue12345" }]
+    },
+    {
+      "id": "mixed-contact",
+      "lines": ["Escalation", "Email owner@example.test", "Phone +44 20 7946 0958"],
+      "expected": [
+        { "category": "email", "value": "owner@example.test" },
+        { "category": "phone", "value": "+44 20 7946 0958" }
+      ]
+    },
+    {
+      "id": "mixed-finance",
+      "lines": ["Payment investigation", "A/C: 1111-2222-3333", "Token: demo_token_123456789"],
+      "expected": [
+        { "category": "account_number", "value": "1111-2222-3333" },
+        { "category": "api_key", "value": "demo_token_123456789" }
+      ]
+    },
+    {
+      "id": "negative-ticket",
+      "lines": ["Ticket 4821", "Status: investigating", "Priority: normal"],
+      "expected": []
+    },
+    {
+      "id": "negative-date-time",
+      "lines": ["Retry scheduled", "2026-09-02 at 10:30", "Attempts: 3"],
+      "expected": []
+    },
+    {
+      "id": "negative-order",
+      "lines": ["Order 12345678", "Items: 4", "Warehouse: Nairobi"],
+      "expected": []
+    },
+    {
+      "id": "negative-version",
+      "lines": ["Agent version 12.8.4", "Build 987654", "Channel: stable"],
+      "expected": []
+    },
+    {
+      "id": "negative-url",
+      "lines": ["Request failed", "https://status.example.test/incidents/4821", "HTTP 503"],
+      "expected": []
+    },
+    {
+      "id": "negative-short-secret",
+      "lines": ["Feature flag", "Secret: hidden", "Scope: local"],
+      "expected": []
+    },
+    {
+      "id": "negative-reference",
+      "lines": ["Account settings opened", "Reference: INV-2026-1042", "No private value shown"],
+      "expected": []
+    },
+    {
+      "id": "multiple-emails",
+      "lines": ["Participants", "from@example.test", "to@example.test"],
+      "expected": [
+        { "category": "email", "value": "from@example.test" },
+        { "category": "email", "value": "to@example.test" }
+      ]
+    }
+  ]
+}

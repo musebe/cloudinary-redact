@@ -50,4 +50,4 @@ The application is designed for one Vercel project. Vercel officially supports H
 
 ## Current checkpoint
 
-The Hono/Vercel shell, health route, responsive project page, environment contract, and test foundation are complete. Upload and OCR processing are the next implementation stage.
+The Hono/Vercel foundation and sensitive-text classifier are complete. The versioned baseline contains 20 synthetic screenshot cases and 16 labeled findings. It currently produces 100% precision and 100% recall on the source text. This is a classifier-only baseline; the final proof will measure the full OCR and redaction pipeline.

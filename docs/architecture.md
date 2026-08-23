@@ -47,6 +47,10 @@ Browser
 - Keep OCR add-on transformations signed or eagerly generated.
 - Use coordinate-based `blur_region` or `pixelate_region` transformations so nonsensitive text remains readable.
 
+## Classifier baseline
+
+`benchmarks/synthetic-screenshots-v1.json` defines 20 synthetic support screens with 16 labeled emails, phone numbers, account numbers, and API keys. The deterministic classifier currently reaches 100% precision and 100% recall on the source text. This does not measure OCR accuracy; the final benchmark must render the cases as images and score the complete Cloudinary OCR pipeline.
+
 ## Hosting decision
 
 The project uses one Vercel deployment. Vercel recognizes `src/index.ts` as a Hono entry point, turns server routes into Vercel Functions, and serves `public/` files from its CDN.

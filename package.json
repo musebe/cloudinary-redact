@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "tsx watch src/dev.ts",
     "dev:vercel": "vercel dev",
+    "benchmark:classifier": "tsx scripts/run-classifier-benchmark.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "check": "npm run typecheck && npm run test"
