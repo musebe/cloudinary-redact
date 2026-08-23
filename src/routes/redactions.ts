@@ -3,6 +3,7 @@ import { getCookie, setCookie } from 'hono/cookie'
 
 import {
   readRedactionRecord,
+  readRedactionRecords,
   setReviewDecision,
 } from '../cloudinary/screenshots.js'
 import { getRuntimeConfig } from '../config/env.js'
@@ -11,6 +12,7 @@ import { processScreenshot } from '../redaction/process.js'
 import { validateScreenshot } from '../security/file.js'
 import {
   createReviewSession,
+  getReviewSessionAssetIds,
   reviewSessionMaxAge,
   verifyReviewSession,
 } from '../security/session.js'
@@ -64,20 +66,44 @@ redactions.post('/', async (context) => {
     mode,
   })
 
+  const existingAssetIds = getReviewSessionAssetIds(
+    getCookie(context, 'redaction_review'),
+    config.sessionSecret,
+  )
   setCookie(
     context,
     'redaction_review',
-    createReviewSession(result.assetId, config.sessionSecret),
+    createReviewSession(
+      [result.assetId, ...existingAssetIds],
+      config.sessionSecret,
+    ),
     {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'Strict',
-      path: `/api/redactions/${result.assetId}`,
+      path: '/api/redactions',
       maxAge: reviewSessionMaxAge,
     },
   )
 
   return context.json({ success: true, data: result }, 201)
+})
+
+redactions.get('/', async (context) => {
+  const { sessionSecret } = requireRuntimeConfig()
+  const assetIds = getReviewSessionAssetIds(
+    getCookie(context, 'redaction_review'),
+    sessionSecret,
+  )
+  if (assetIds.length === 0) {
+    return context.json({ success: true, data: [] })
+  }
+
+  const records = await readRedactionRecords(assetIds)
+  return context.json({
+    success: true,
+    data: records.map(({ context: _context, ...record }) => record),
+  })
 })
 
 redactions.get('/:assetId', async (context) => {

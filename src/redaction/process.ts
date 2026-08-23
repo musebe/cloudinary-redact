@@ -1,5 +1,6 @@
 import {
   createReviewDerivative,
+  SCREENSHOT_ASSET_FOLDER,
   type RedactionMode,
   uploadRestrictedScreenshot,
 } from '../cloudinary/screenshots.js'
@@ -37,6 +38,7 @@ export async function processScreenshot(options: {
   return {
     assetId: uploaded.assetId,
     publicId: uploaded.publicId,
+    assetFolder: SCREENSHOT_ASSET_FOLDER,
     width: uploaded.width,
     height: uploaded.height,
     ocrStatus: ocr.status,

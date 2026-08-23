@@ -40,6 +40,51 @@ function safeFilename(filename: string): string {
   return filename.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 120)
 }
 
+function parseRedactionRecord(assetValue: unknown) {
+  const asset = asRecord(assetValue)
+  if (
+    typeof asset.asset_id !== 'string' ||
+    typeof asset.public_id !== 'string' ||
+    !asset.public_id.startsWith(SCREENSHOT_PUBLIC_ID_PREFIX)
+  ) {
+    return null
+  }
+
+  const context = readContextValues(asset.context)
+  const transformation = context.redaction_transform
+  if (!transformation) return null
+
+  const cloudinary = getCloudinary()
+  return {
+    assetId: asset.asset_id,
+    publicId: asset.public_id,
+    assetFolder:
+      typeof asset.asset_folder === 'string'
+        ? asset.asset_folder
+        : SCREENSHOT_ASSET_FOLDER,
+    status: (context.redaction_status || 'review_required') as ReviewStatus,
+    mode: context.redaction_mode || 'pixelate',
+    findingCount: Number(context.redaction_count || 0),
+    categories: context.redaction_categories
+      ? context.redaction_categories.split(',').filter(Boolean)
+      : [],
+    originalUrl: cloudinary.url(asset.public_id, {
+      resource_type: 'image',
+      type: 'authenticated',
+      secure: true,
+      sign_url: true,
+    }),
+    redactedUrl: cloudinary.url(asset.public_id, {
+      resource_type: 'image',
+      type: 'authenticated',
+      secure: true,
+      sign_url: true,
+      transformation,
+    }),
+    context,
+  }
+}
+
 export async function uploadRestrictedScreenshot(
   bytes: Uint8Array,
   filename: string,
@@ -143,51 +188,28 @@ export async function createReviewDerivative(options: {
 }
 
 export async function readRedactionRecord(assetId: string) {
+  const records = await readRedactionRecords([assetId])
+  const record = records[0]
+  if (!record) throw new Error('The redaction record could not be found.')
+  return record
+}
+
+export async function readRedactionRecords(assetIds: string[]) {
+  if (assetIds.length === 0) return []
   const cloudinary = getCloudinary()
-  const response = await cloudinary.api.resources_by_asset_ids([assetId], {
+  const response = await cloudinary.api.resources_by_asset_ids(assetIds, {
     resource_type: 'image',
     type: 'authenticated',
     context: true,
   })
-  const asset = response.resources?.[0]
-
-  if (
-    !asset ||
-    typeof asset.asset_id !== 'string' ||
-    typeof asset.public_id !== 'string' ||
-    !asset.public_id.startsWith(SCREENSHOT_PUBLIC_ID_PREFIX)
-  ) {
-    throw new Error('The redaction record could not be found.')
-  }
-
-  const context = readContextValues(asset.context)
-  const transformation = context.redaction_transform
-  if (!transformation) throw new Error('The redaction evidence is incomplete.')
-
-  return {
-    assetId: asset.asset_id,
-    publicId: asset.public_id,
-    status: (context.redaction_status || 'review_required') as ReviewStatus,
-    mode: context.redaction_mode || 'pixelate',
-    findingCount: Number(context.redaction_count || 0),
-    categories: context.redaction_categories
-      ? context.redaction_categories.split(',').filter(Boolean)
-      : [],
-    originalUrl: cloudinary.url(asset.public_id, {
-      resource_type: 'image',
-      type: 'authenticated',
-      secure: true,
-      sign_url: true,
-    }),
-    redactedUrl: cloudinary.url(asset.public_id, {
-      resource_type: 'image',
-      type: 'authenticated',
-      secure: true,
-      sign_url: true,
-      transformation,
-    }),
-    context,
-  }
+  const records = (response.resources || [])
+    .map(parseRedactionRecord)
+    .filter((record): record is NonNullable<typeof record> => record !== null)
+  const byAssetId = new Map(records.map((record) => [record.assetId, record]))
+  return assetIds.flatMap((assetId) => {
+    const record = byAssetId.get(assetId)
+    return record ? [record] : []
+  })
 }
 
 export async function setReviewDecision(

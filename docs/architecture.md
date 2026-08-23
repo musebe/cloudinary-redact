@@ -30,6 +30,8 @@ Browser
 
 Every original is placed in the Cloudinary Media Library asset folder `screenshot-redaction/uploads`. Its public ID uses the same namespace, while the safe before-and-after output is stored as a derived transformation of that restricted asset.
 
+The compact gallery is session-scoped rather than account-wide. Its signed, HTTP-only cookie stores at most four immutable Cloudinary asset IDs. `GET /api/redactions` verifies that cookie, fetches those records from Cloudinary in one Admin API request, and returns signed before-and-after URLs without exposing the API secret or unrelated restricted originals.
+
 ## Initial security decisions
 
 - Originals use authenticated Cloudinary delivery and never receive an ordinary public URL.

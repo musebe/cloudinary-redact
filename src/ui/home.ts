@@ -94,6 +94,23 @@ export function renderHomePage() {
                 <button id="approve-button" class="button" type="button">Approve safe version</button>
               </div>
             </section>
+
+            <section
+              id="session-gallery"
+              class="session-gallery"
+              aria-labelledby="gallery-title"
+              hidden
+            >
+              <div class="gallery-heading">
+                <div>
+                  <p class="eyebrow">Current review session</p>
+                  <h2 id="gallery-title">Recent before and after</h2>
+                </div>
+                <p class="gallery-note">Four newest comparisons</p>
+              </div>
+              <p id="gallery-status" class="request-status" role="status"></p>
+              <div id="gallery-grid" class="gallery-grid"></div>
+            </section>
           </section>
 
           <ol class="steps" aria-label="Redaction pipeline">

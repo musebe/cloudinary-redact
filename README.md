@@ -11,7 +11,8 @@ The completed demo will:
 3. Detect email addresses, phone numbers, account numbers, and API-key patterns.
 4. Generate targeted blur or pixelation regions.
 5. Require a human review before the redacted derivative is released.
-6. Measure precision and recall against a versioned synthetic screenshot dataset.
+6. Show the four newest before-and-after comparisons from the signed review session.
+7. Measure precision and recall against a versioned synthetic screenshot dataset.
 
 ## Why one Vercel project works
 
@@ -60,7 +61,7 @@ curl -X POST http://localhost:3000/api/redactions \
   -F mode=pixelate
 ```
 
-The route validates the file signature and size, uploads the original as an authenticated Cloudinary asset in `screenshot-redaction/uploads`, runs Advanced OCR, maps sensitive matches to OCR rectangles, eagerly creates a signed targeted redaction, and returns masked findings for review. The original and its derived redaction stay attached to one Cloudinary asset.
+The route validates the file signature and size, uploads the original as an authenticated Cloudinary asset in `screenshot-redaction/uploads`, runs Advanced OCR, maps sensitive matches to OCR rectangles, eagerly creates a signed targeted redaction, and returns masked findings for review. The original and its derived redaction stay attached to one Cloudinary asset. A compact gallery reads back only the four immutable asset IDs stored in the signed reviewer session.
 
 ## Hosting
 
@@ -68,4 +69,4 @@ The application is designed for one Vercel project. Vercel officially supports H
 
 ## Current checkpoint
 
-The Hono/Vercel foundation, sensitive-text classifier, restricted Cloudinary upload engine, OCR parser, coordinate mapper, targeted transformation builder, signed review session, approval API, and responsive comparison UI are complete. Sixteen automated tests pass. The repository includes 20 rendered synthetic screenshots and an OCR benchmark command that cleans up its temporary Cloudinary assets. The source-text baseline has 100% precision and recall; the real OCR run remains pending credentials and add-on registration.
+The Hono/Vercel foundation, sensitive-text classifier, restricted Cloudinary upload engine, OCR parser, coordinate mapper, targeted transformation builder, signed review session, approval API, responsive comparison UI, and four-item session gallery are complete. Eighteen automated tests pass. A live Cloudinary check placed the original in `screenshot-redaction/uploads`, detected the synthetic email, generated the pixelated derivative, and read the pair back through the authenticated gallery. The repository also includes 20 rendered synthetic benchmark screenshots; the complete 20-image OCR score remains pending.

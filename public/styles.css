@@ -94,7 +94,8 @@ h2 {
 }
 
 .workspace,
-.result {
+.result,
+.session-gallery {
   border: 1px solid #dce2ea;
   border-radius: 24px;
   background: white;
@@ -212,6 +213,82 @@ fieldset label {
   box-shadow: none;
 }
 
+.session-gallery {
+  padding: clamp(20px, 4vw, 32px);
+  margin-top: 24px;
+  box-shadow: none;
+}
+
+.gallery-heading,
+.gallery-card-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.gallery-note,
+.gallery-meta {
+  margin-bottom: 0;
+  color: #64748b;
+  font-size: 0.88rem;
+}
+
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.gallery-card {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid #dce2ea;
+  border-radius: 16px;
+  background: #f8fafc;
+}
+
+.gallery-card h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.gallery-meta {
+  margin-top: 8px;
+}
+
+.gallery-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.gallery-pair figcaption {
+  font-size: 0.78rem;
+}
+
+.gallery-pair img {
+  display: block;
+  width: 100%;
+  height: 150px;
+  border: 1px solid #d8e0ea;
+  border-radius: 10px;
+  background: #eef3f9;
+  object-fit: contain;
+}
+
+.review-badge-approved {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.review-badge-rejected {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
 .result-heading,
 .review-actions {
   display: flex;
@@ -298,7 +375,8 @@ input:focus-visible {
   }
 
   .upload-card,
-  .comparison {
+  .comparison,
+  .gallery-grid {
     grid-template-columns: 1fr;
   }
 }
@@ -323,7 +401,8 @@ input:focus-visible {
   }
 
   .review-actions,
-  .result-heading {
+  .result-heading,
+  .gallery-heading {
     align-items: stretch;
     flex-direction: column;
   }

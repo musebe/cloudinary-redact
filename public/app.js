@@ -8,6 +8,9 @@ const findingsList = document.querySelector('#findings')
 const reviewStatus = document.querySelector('#review-status')
 const approveButton = document.querySelector('#approve-button')
 const rejectButton = document.querySelector('#reject-button')
+const gallery = document.querySelector('#session-gallery')
+const galleryGrid = document.querySelector('#gallery-grid')
+const galleryStatus = document.querySelector('#gallery-status')
 
 let activeAssetId = null
 
@@ -70,6 +73,75 @@ function renderResult(data) {
   result.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' })
 }
 
+function createPreview(url, caption, alt) {
+  const figure = document.createElement('figure')
+  const label = document.createElement('figcaption')
+  const image = document.createElement('img')
+  label.textContent = caption
+  image.src = url
+  image.alt = alt
+  image.loading = 'lazy'
+  image.width = 480
+  image.height = 320
+  figure.append(label, image)
+  return figure
+}
+
+function renderGallery(records) {
+  galleryGrid.replaceChildren()
+  gallery.hidden = records.length === 0
+  if (records.length === 0) return
+
+  for (const [index, record] of records.entries()) {
+    const card = document.createElement('article')
+    card.className = 'gallery-card'
+
+    const heading = document.createElement('div')
+    heading.className = 'gallery-card-heading'
+    const title = document.createElement('h3')
+    title.textContent = `Comparison ${index + 1}`
+    const badge = document.createElement('span')
+    badge.className = `review-badge review-badge-${record.status}`
+    badge.textContent = record.status.replace('_', ' ')
+    heading.append(title, badge)
+
+    const meta = document.createElement('p')
+    meta.className = 'gallery-meta'
+    const findingLabel = record.findingCount === 1 ? 'finding' : 'findings'
+    meta.textContent = `${record.findingCount} ${findingLabel} · ${record.mode}`
+
+    const pair = document.createElement('div')
+    pair.className = 'gallery-pair'
+    pair.append(
+      createPreview(
+        record.originalUrl,
+        'Before',
+        'Restricted original screenshot from this review session',
+      ),
+      createPreview(
+        record.redactedUrl,
+        'After',
+        'Cloudinary derivative with sensitive text redacted',
+      ),
+    )
+
+    card.append(heading, meta, pair)
+    galleryGrid.append(card)
+  }
+}
+
+async function loadGallery() {
+  try {
+    const response = await fetch('/api/redactions')
+    const payload = await response.json()
+    if (!response.ok) throw new Error(payload.error || 'Gallery unavailable.')
+    renderGallery(payload.data)
+    galleryStatus.textContent = ''
+  } catch {
+    galleryStatus.textContent = 'Recent comparisons could not be loaded.'
+  }
+}
+
 form.addEventListener('submit', async (event) => {
   event.preventDefault()
   const file = fileInput.files[0]
@@ -88,6 +160,7 @@ form.addEventListener('submit', async (event) => {
     if (!response.ok) throw new Error(payload.error || 'The screenshot could not be processed.')
 
     renderResult(payload.data)
+    await loadGallery()
     requestStatus.textContent = 'Redaction ready for human review.'
   } catch (error) {
     requestStatus.textContent = error instanceof Error
@@ -115,6 +188,7 @@ async function submitReview(decision) {
 
     reviewStatus.textContent = payload.data.status === 'approved' ? 'Approved' : 'Rejected'
     requestStatus.textContent = 'Review decision saved to the Cloudinary asset.'
+    await loadGallery()
   } catch (error) {
     approveButton.disabled = false
     rejectButton.disabled = false
@@ -126,3 +200,4 @@ async function submitReview(decision) {
 
 approveButton.addEventListener('click', () => submitReview('approve'))
 rejectButton.addEventListener('click', () => submitReview('reject'))
+loadGallery()

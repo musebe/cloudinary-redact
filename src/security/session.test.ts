@@ -1,6 +1,11 @@
 import { describe, expect, test } from 'vitest'
 
-import { createReviewSession, verifyReviewSession } from './session.js'
+import {
+  createReviewSession,
+  getReviewSessionAssetIds,
+  reviewSessionAssetLimit,
+  verifyReviewSession,
+} from './session.js'
 
 const secret = 'a-test-secret-that-is-longer-than-32-characters'
 
@@ -19,5 +24,15 @@ describe('review session', () => {
   test('rejects a modified signature', () => {
     const token = createReviewSession('asset-one', secret)
     expect(verifyReviewSession(`${token}x`, 'asset-one', secret)).toBe(false)
+  })
+
+  test('keeps only four unique assets for a compact session gallery', () => {
+    const assets = ['five', 'four', 'three', 'two', 'one', 'five']
+    const token = createReviewSession(assets, secret)
+
+    expect(getReviewSessionAssetIds(token, secret)).toEqual(
+      assets.slice(0, reviewSessionAssetLimit),
+    )
+    expect(verifyReviewSession(token, 'one', secret)).toBe(false)
   })
 })
