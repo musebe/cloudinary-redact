@@ -51,6 +51,8 @@ Browser
 
 `benchmarks/synthetic-screenshots-v1.json` defines 20 synthetic support screens with 16 labeled emails, phone numbers, account numbers, and API keys. The deterministic classifier currently reaches 100% precision and 100% recall on the source text. This does not measure OCR accuracy; the final benchmark must render the cases as images and score the complete Cloudinary OCR pipeline.
 
+The corresponding 1200 by 900 PNG files are committed in `benchmarks/images/`. `npm run benchmark:ocr` uploads each fixture as an authenticated temporary asset, parses Cloudinary's real OCR result, scores exact category-and-value matches, and deletes that fixture in a `finally` block. Results must be reported separately from the source-text baseline.
+
 ## Hosting decision
 
 The project uses one Vercel deployment. Vercel recognizes `src/index.ts` as a Hono entry point, turns server routes into Vercel Functions, and serves `public/` files from its CDN.

@@ -205,3 +205,15 @@ export async function setReviewDecision(
 
   return { ...record, status }
 }
+
+export async function deleteRestrictedScreenshot(publicId: string) {
+  if (!publicId.startsWith('screenshot-redaction/originals/')) {
+    throw new Error('Refusing to delete an asset outside the redaction namespace.')
+  }
+
+  await getCloudinary().uploader.destroy(publicId, {
+    resource_type: 'image',
+    type: 'authenticated',
+    invalidate: true,
+  })
+}

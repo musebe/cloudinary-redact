@@ -11,6 +11,7 @@ describe('targeted Cloudinary transformations', () => {
           maskedValue: 'a***@example.com',
           finding: {
             category: 'email',
+            value: 'alex@example.com',
             maskedValue: 'a***@example.com',
             start: 0,
             end: 16,

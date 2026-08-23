@@ -43,6 +43,9 @@ Open the application on port `3000`. The health response is available at `/api/h
 | --- | --- |
 | `npm run dev` | Run Hono locally with file watching |
 | `npm run dev:vercel` | Run through the Vercel CLI after it is installed and linked |
+| `npm run benchmark:render` | Rebuild the 20 synthetic 1200 × 900 screenshots |
+| `npm run benchmark:classifier` | Measure the source-text classifier baseline |
+| `npm run benchmark:ocr` | Measure real Cloudinary OCR precision and recall, then delete benchmark uploads |
 | `npm run typecheck` | Validate TypeScript |
 | `npm test` | Run Vitest |
 | `npm run check` | Run type checking and tests |
@@ -65,4 +68,4 @@ The application is designed for one Vercel project. Vercel officially supports H
 
 ## Current checkpoint
 
-The Hono/Vercel foundation, sensitive-text classifier, restricted Cloudinary upload engine, OCR parser, coordinate mapper, targeted transformation builder, signed review session, approval API, and responsive comparison UI are complete. Fourteen automated tests pass. The source-text baseline contains 20 synthetic screenshot cases and 16 labeled findings with 100% precision and recall. A credentialed Cloudinary run and end-to-end image benchmark remain.
+The Hono/Vercel foundation, sensitive-text classifier, restricted Cloudinary upload engine, OCR parser, coordinate mapper, targeted transformation builder, signed review session, approval API, and responsive comparison UI are complete. Sixteen automated tests pass. The repository includes 20 rendered synthetic screenshots and an OCR benchmark command that cleans up its temporary Cloudinary assets. The source-text baseline has 100% precision and recall; the real OCR run remains pending credentials and add-on registration.

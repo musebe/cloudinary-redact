@@ -1,4 +1,4 @@
-import type { PublicSensitiveMatch, SensitiveCategory } from '../redaction/types.js'
+import type { SensitiveCategory, SensitiveMatch } from '../redaction/types.js'
 
 export type Rectangle = {
   x: number
@@ -16,5 +16,5 @@ export type RedactionRegion = {
   category: SensitiveCategory
   maskedValue: string
   rectangle: Rectangle
-  finding: PublicSensitiveMatch
+  finding: SensitiveMatch
 }

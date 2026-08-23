@@ -1,6 +1,5 @@
 import {
   detectSensitiveText,
-  toPublicSensitiveMatch,
 } from '../redaction/detector.js'
 import type { OcrToken, Rectangle, RedactionRegion } from './types.js'
 
@@ -103,7 +102,7 @@ export function buildRedactionRegions(
       regions.push({
         category: match.category,
         maskedValue: match.maskedValue,
-        finding: toPublicSensitiveMatch(match),
+        finding: match,
         rectangle: addPadding(
           unionRectangles(matchedTokens.map(({ rectangle }) => rectangle)),
           imageWidth,

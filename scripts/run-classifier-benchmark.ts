@@ -1,20 +1,8 @@
-import { readFile } from 'node:fs/promises'
-
+import { loadBenchmarkDataset } from '../src/benchmark/dataset.js'
 import { calculateBenchmarkMetrics } from '../src/benchmark/metrics.js'
 import { detectSensitiveText } from '../src/redaction/detector.js'
-import type { SensitiveCategory } from '../src/redaction/types.js'
 
-type Dataset = {
-  dataset: string
-  cases: Array<{
-    id: string
-    lines: string[]
-    expected: Array<{ category: SensitiveCategory; value: string }>
-  }>
-}
-
-const datasetUrl = new URL('../benchmarks/synthetic-screenshots-v1.json', import.meta.url)
-const dataset = JSON.parse(await readFile(datasetUrl, 'utf8')) as Dataset
+const dataset = await loadBenchmarkDataset()
 const expected = dataset.cases.flatMap((item) => item.expected)
 const detected = dataset.cases.flatMap((item) =>
   detectSensitiveText(item.lines.join('\n')),
