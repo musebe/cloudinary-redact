@@ -150,11 +150,13 @@ form.addEventListener('submit', async (event) => {
 
   try {
     await validateFile(file)
+    // Disabled form controls are omitted, so capture the selected file first.
+    const formData = new FormData(form)
     setBusy(true)
     requestStatus.textContent = 'Uploading securely and running Cloudinary OCR…'
     const response = await fetch('/api/redactions', {
       method: 'POST',
-      body: new FormData(form),
+      body: formData,
     })
     const payload = await response.json()
     if (!response.ok) throw new Error(payload.error || 'The screenshot could not be processed.')
