@@ -60,7 +60,7 @@ curl -X POST http://localhost:3000/api/redactions \
   -F mode=pixelate
 ```
 
-The route validates the file signature and size, uploads the original as an authenticated Cloudinary asset, runs Advanced OCR, maps sensitive matches to OCR rectangles, eagerly creates a signed targeted redaction, and returns masked findings for review.
+The route validates the file signature and size, uploads the original as an authenticated Cloudinary asset in `screenshot-redaction/uploads`, runs Advanced OCR, maps sensitive matches to OCR rectangles, eagerly creates a signed targeted redaction, and returns masked findings for review. The original and its derived redaction stay attached to one Cloudinary asset.
 
 ## Hosting
 

@@ -35,7 +35,7 @@ npm run benchmark:ocr
 
 The classifier baseline currently reports 100% precision, recall, and F1 on source text. No OCR score should be reported until the credentialed command completes against Cloudinary Advanced OCR.
 
-The OCR command uploads one authenticated fixture at a time and deletes it in a `finally` block. If cleanup fails, remove only assets under `screenshot-redaction/originals/` that correspond to the benchmark run.
+The OCR command uploads one authenticated fixture at a time and deletes it in a `finally` block. If cleanup fails, remove only assets under `screenshot-redaction/uploads/` that correspond to the benchmark run.
 
 ## Limitations
 

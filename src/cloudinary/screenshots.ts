@@ -17,6 +17,9 @@ export type UploadedScreenshot = {
 
 export type ReviewStatus = 'review_required' | 'approved' | 'rejected'
 
+export const SCREENSHOT_ASSET_FOLDER = 'screenshot-redaction/uploads'
+export const SCREENSHOT_PUBLIC_ID_PREFIX = `${SCREENSHOT_ASSET_FOLDER}/`
+
 type ContextValues = Record<string, string>
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -46,7 +49,9 @@ export async function uploadRestrictedScreenshot(
   const options: UploadApiOptions = {
     resource_type: 'image',
     type: 'authenticated',
-    public_id: `screenshot-redaction/originals/${randomUUID()}`,
+    asset_folder: SCREENSHOT_ASSET_FOLDER,
+    public_id: `${SCREENSHOT_PUBLIC_ID_PREFIX}${randomUUID()}`,
+    display_name: safeFilename(filename),
     overwrite: false,
     ocr: ocrMode,
     tags: ['screenshot-redaction', 'restricted-original', 'review-required'],
@@ -150,7 +155,7 @@ export async function readRedactionRecord(assetId: string) {
     !asset ||
     typeof asset.asset_id !== 'string' ||
     typeof asset.public_id !== 'string' ||
-    !asset.public_id.startsWith('screenshot-redaction/originals/')
+    !asset.public_id.startsWith(SCREENSHOT_PUBLIC_ID_PREFIX)
   ) {
     throw new Error('The redaction record could not be found.')
   }
@@ -207,7 +212,7 @@ export async function setReviewDecision(
 }
 
 export async function deleteRestrictedScreenshot(publicId: string) {
-  if (!publicId.startsWith('screenshot-redaction/originals/')) {
+  if (!publicId.startsWith(SCREENSHOT_PUBLIC_ID_PREFIX)) {
     throw new Error('Refusing to delete an asset outside the redaction namespace.')
   }
 

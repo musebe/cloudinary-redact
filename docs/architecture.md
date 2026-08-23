@@ -28,6 +28,8 @@ Browser
        -> reject: keep delivery restricted
 ```
 
+Every original is placed in the Cloudinary Media Library asset folder `screenshot-redaction/uploads`. Its public ID uses the same namespace, while the safe before-and-after output is stored as a derived transformation of that restricted asset.
+
 ## Initial security decisions
 
 - Originals use authenticated Cloudinary delivery and never receive an ordinary public URL.
@@ -51,7 +53,7 @@ Browser
 
 `benchmarks/synthetic-screenshots-v1.json` defines 20 synthetic support screens with 16 labeled emails, phone numbers, account numbers, and API keys. The deterministic classifier currently reaches 100% precision and 100% recall on the source text. This does not measure OCR accuracy; the final benchmark must render the cases as images and score the complete Cloudinary OCR pipeline.
 
-The corresponding 1200 by 900 PNG files are committed in `benchmarks/images/`. `npm run benchmark:ocr` uploads each fixture as an authenticated temporary asset, parses Cloudinary's real OCR result, scores exact category-and-value matches, and deletes that fixture in a `finally` block. Results must be reported separately from the source-text baseline.
+The corresponding 1200 by 900 PNG files are committed in `benchmarks/images/`. `npm run benchmark:ocr` uploads each fixture as an authenticated temporary asset, parses Cloudinary's real OCR result, scores exact category-and-value matches, and deletes that fixture in a `finally` block. Cleanup refuses to delete anything outside `screenshot-redaction/uploads/`. Results must be reported separately from the source-text baseline.
 
 ## Hosting decision
 

@@ -1,8 +1,19 @@
 import { describe, expect, test } from 'vitest'
 
-import { buildRedactionTransformation } from './screenshots.js'
+import {
+  buildRedactionTransformation,
+  SCREENSHOT_ASSET_FOLDER,
+  SCREENSHOT_PUBLIC_ID_PREFIX,
+} from './screenshots.js'
 
 describe('targeted Cloudinary transformations', () => {
+  test('uses one matching Cloudinary asset folder and public ID namespace', () => {
+    expect(SCREENSHOT_ASSET_FOLDER).toBe('screenshot-redaction/uploads')
+    expect(SCREENSHOT_PUBLIC_ID_PREFIX).toBe(
+      `${SCREENSHOT_ASSET_FOLDER}/`,
+    )
+  })
+
   test('builds one pixelation operation per sensitive region', () => {
     const transformation = buildRedactionTransformation(
       [
