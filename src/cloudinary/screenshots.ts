@@ -79,7 +79,7 @@ function parseRedactionRecord(assetValue: unknown) {
       type: 'authenticated',
       secure: true,
       sign_url: true,
-      transformation,
+      raw_transformation: transformation,
     }),
     context,
   }
@@ -181,7 +181,7 @@ export async function createReviewDerivative(options: {
       type: 'authenticated',
       secure: true,
       sign_url: true,
-      transformation,
+      raw_transformation: transformationString,
     }),
     transformation: transformationString,
   }

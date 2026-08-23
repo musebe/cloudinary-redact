@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'vitest'
+import { v2 as cloudinary } from 'cloudinary'
 
 import {
   buildRedactionTransformation,
@@ -12,6 +13,21 @@ describe('targeted Cloudinary transformations', () => {
     expect(SCREENSHOT_PUBLIC_ID_PREFIX).toBe(
       `${SCREENSHOT_ASSET_FOLDER}/`,
     )
+  })
+
+  test('replays persisted transformation syntax as a raw transformation', () => {
+    const persisted = 'e_pixelate_region:18,h_28,w_188,x_1232,y_216'
+
+    expect(
+      cloudinary.utils.generate_transformation_string({
+        raw_transformation: persisted,
+      }),
+    ).toBe(persisted)
+    expect(
+      cloudinary.utils.generate_transformation_string({
+        transformation: persisted,
+      }),
+    ).toBe(`t_${persisted}`)
   })
 
   test('builds one pixelation operation per sensitive region', () => {
