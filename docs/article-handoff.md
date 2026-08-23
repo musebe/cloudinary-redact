@@ -68,4 +68,16 @@ A precision and recall benchmark using a versioned synthetic screenshot dataset.
 
 ## Current proof status
 
-Project name: `cloudinary-redact`. The Hono/Vercel app, restricted upload, OCR mapping, targeted transformation, signed review session, approval API, comparison UI, and four-item session gallery are implemented with 18 passing tests. A live Cloudinary check verified folder placement, email detection, pixelation, signed delivery, and Admin API gallery readback. Twenty 1200 by 900 synthetic benchmark screenshots are included; the complete 20-image OCR score remains pending.
+Project name: `cloudinary-redact`. The Hono/Vercel app, restricted upload, OCR mapping, targeted transformation, signed review session, approval API, comparison UI, and four-item session gallery are implemented with 20 passing tests. A live Cloudinary check verified folder placement, email detection, pixelation, signed delivery, and Admin API gallery readback. Twenty 1200 by 900 synthetic benchmark screenshots are included; the complete 20-image OCR score and deployed demo URL remain pending.
+
+## Review message
+
+Hi [@Melinda Pham](https://cloudinary.monday.com/users/42215299-melinda-pham), the “Automatically Redact Sensitive Text From Screenshots With Cloudinary OCR and Hono” article draft is ready for review once the live URL and full OCR benchmark result are added.
+
+For the design team, the cover should show a support screenshot entering Cloudinary OCR and becoming a before-and-after redacted image. Highlight visible OCR boxes around an email or account number, targeted pixelation, and a clear human-review decision. Keep the surrounding interface readable so it is obvious that only sensitive text is hidden.
+
+Live demo: pending
+
+GitHub repository: [cloudinary-redact](https://github.com/musebe/cloudinary-redact)
+
+Primary reader intent: Build and evaluate a Node.js screenshot-redaction API that finds sensitive text, hides only its coordinates, and keeps the original restricted.

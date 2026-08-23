@@ -1,6 +1,6 @@
 # Cloudinary Redact
 
-A focused Hono API and review interface for detecting sensitive text in support screenshots and creating safe Cloudinary redactions.
+A focused Hono API and review interface for detecting sensitive text in support screenshots and creating reviewable Cloudinary redactions.
 
 ## Planned proof
 
@@ -69,4 +69,4 @@ The application is designed for one Vercel project. Vercel officially supports H
 
 ## Current checkpoint
 
-The Hono/Vercel foundation, sensitive-text classifier, restricted Cloudinary upload engine, OCR parser, coordinate mapper, targeted transformation builder, signed review session, approval API, responsive comparison UI, and four-item session gallery are complete. Eighteen automated tests pass. A live Cloudinary check placed the original in `screenshot-redaction/uploads`, detected the synthetic email, generated the pixelated derivative, and read the pair back through the authenticated gallery. The repository also includes 20 rendered synthetic benchmark screenshots; the complete 20-image OCR score remains pending.
+The Hono/Vercel foundation, sensitive-text classifier, restricted Cloudinary upload engine, OCR parser, coordinate mapper, targeted transformation builder, signed review session, approval API, responsive comparison UI, and four-item session gallery are complete. Twenty automated tests pass. A live Cloudinary check placed the original in `screenshot-redaction/uploads`, detected the synthetic email, generated the pixelated derivative, and read the pair back through the authenticated gallery. The repository also includes 20 rendered synthetic benchmark screenshots; the complete 20-image OCR score remains pending.

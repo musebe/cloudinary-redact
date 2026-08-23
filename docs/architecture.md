@@ -59,8 +59,10 @@ The corresponding 1200 by 900 PNG files are committed in `benchmarks/images/`. `
 
 ## Hosting decision
 
-The project uses one Vercel deployment. Vercel recognizes `src/index.ts` as a Hono entry point, turns server routes into Vercel Functions, and serves `public/` files from its CDN.
+The project uses one Vercel deployment. Vercel recognizes the default-exported Hono app in `src/index.ts`, turns server routes into Vercel Functions, and serves `public/` files from its CDN.
 
 ## Implementation status
 
-`POST /api/redactions` validates JPEG, PNG, and WebP signatures, enforces the 4 MB boundary, uploads the original with authenticated delivery, requests `adv_ocr`, maps masked sensitive findings to padded OCR rectangles, and eagerly creates a signed blur or pixelation derivative. It issues an HTTP-only HMAC-signed review cookie bound to the immutable asset ID. The read and approval routes require that session, read the current Cloudinary record, and persist approved or rejected status in asset context. The engine is covered by tests but still needs a credentialed Cloudinary readback before it can be considered verified end to end.
+`POST /api/redactions` validates JPEG, PNG, and WebP signatures, enforces the 4 MB boundary, uploads the original with authenticated delivery, requests `adv_ocr`, maps masked sensitive findings to padded OCR rectangles, and eagerly creates a signed blur or pixelation derivative. It issues an HTTP-only HMAC-signed review cookie bound to at most four immutable asset IDs. The read and approval routes require that session, read the current Cloudinary record, and persist approved or rejected status in asset context.
+
+A credentialed end-to-end check verified asset-folder placement, Advanced OCR completion, email classification, targeted pixelation, signed delivery for the original and derivative, and Admin API gallery readback. TypeScript validation and 20 automated tests pass. The full 20-image Cloudinary OCR benchmark remains pending and must not be confused with the 100% source-text classifier baseline.
