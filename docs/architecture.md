@@ -54,3 +54,7 @@ Browser
 ## Hosting decision
 
 The project uses one Vercel deployment. Vercel recognizes `src/index.ts` as a Hono entry point, turns server routes into Vercel Functions, and serves `public/` files from its CDN.
+
+## Implementation status
+
+`POST /api/redactions` now validates JPEG, PNG, and WebP signatures, enforces the 4 MB boundary, uploads the original with authenticated delivery, requests `adv_ocr`, maps masked sensitive findings to padded OCR rectangles, and eagerly creates a signed blur or pixelation derivative. The engine is covered by tests but still needs a credentialed Cloudinary readback before it can be considered verified end to end.

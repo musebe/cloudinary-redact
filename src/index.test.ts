@@ -22,4 +22,15 @@ describe('application shell', () => {
     })
     expect(JSON.stringify(body)).not.toContain('API_SECRET')
   })
+
+  test('fails closed when screenshot processing is not configured', async () => {
+    const response = await app.request('/api/redactions', { method: 'POST' })
+    const body = await response.json()
+
+    expect(response.status).toBe(503)
+    expect(body).toEqual({
+      success: false,
+      error: 'Cloudinary processing is not configured.',
+    })
+  })
 })

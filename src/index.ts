@@ -2,6 +2,8 @@ import { Hono } from 'hono'
 import { secureHeaders } from 'hono/secure-headers'
 
 import { getConfigurationStatus } from './config/env.js'
+import { HttpError } from './http/errors.js'
+import { redactions } from './routes/redactions.js'
 import { renderHomePage } from './ui/home.js'
 
 const app = new Hono()
@@ -18,6 +20,8 @@ app.get('/api/health', (context) => {
   })
 })
 
+app.route('/api/redactions', redactions)
+
 app.notFound((context) => {
   return context.json(
     {
@@ -29,6 +33,16 @@ app.notFound((context) => {
 })
 
 app.onError((error, context) => {
+  if (error instanceof HttpError) {
+    return context.json(
+      {
+        success: false,
+        error: error.message,
+      },
+      error.status,
+    )
+  }
+
   console.error('[request-error]', { name: error.name })
   return context.json(
     {

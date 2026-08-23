@@ -44,10 +44,22 @@ Open the application on port `3000`. The health response is available at `/api/h
 | `npm test` | Run Vitest |
 | `npm run check` | Run type checking and tests |
 
+## Redaction endpoint
+
+With Cloudinary credentials configured and the OCR add-on enabled, send a JPEG, PNG, or WebP screenshot to the Hono API:
+
+```bash
+curl -X POST http://localhost:3000/api/redactions \
+  -F image=@support-screenshot.png \
+  -F mode=pixelate
+```
+
+The route validates the file signature and size, uploads the original as an authenticated Cloudinary asset, runs Advanced OCR, maps sensitive matches to OCR rectangles, eagerly creates a signed targeted redaction, and returns masked findings for review.
+
 ## Hosting
 
 The application is designed for one Vercel project. Vercel officially supports Hono with zero-configuration app detection. Cloudinary remains the source of truth for the restricted original, OCR evidence, derived redaction, and review state.
 
 ## Current checkpoint
 
-The Hono/Vercel foundation and sensitive-text classifier are complete. The versioned baseline contains 20 synthetic screenshot cases and 16 labeled findings. It currently produces 100% precision and 100% recall on the source text. This is a classifier-only baseline; the final proof will measure the full OCR and redaction pipeline.
+The Hono/Vercel foundation, sensitive-text classifier, restricted Cloudinary upload engine, OCR parser, coordinate mapper, and targeted transformation builder are complete. Eleven automated tests pass. The source-text baseline contains 20 synthetic screenshot cases and 16 labeled findings with 100% precision and recall. A credentialed Cloudinary run, human review state, and end-to-end image benchmark remain.
