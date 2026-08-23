@@ -4,7 +4,7 @@ You can automatically hide email addresses and account numbers in screenshots by
 
 In this tutorial, you will build that pipeline as a Hono API. It keeps the original screenshot behind authenticated Cloudinary delivery, returns only masked findings to the browser, creates a targeted redacted derivative, and requires a reviewer to approve or reject the result.
 
-- Live demo: coming soon
+- [Try the live Cloudinary Redact demo](https://cloudinary-redact.vercel.app/)
 - [Explore the complete GitHub repository](https://github.com/musebe/cloudinary-redact)
 
 This is a practical privacy control, not a guarantee that every sensitive value will be found. Optical character recognition (OCR) and pattern matching can both miss content, so ambiguous or consequential screenshots should remain behind a human-review gate.
@@ -15,9 +15,11 @@ The application follows this request flow:
 
 ```text
 Browser
-  -> Hono multipart upload route
-  -> file size, MIME, and magic-byte validation
-  -> authenticated Cloudinary upload with Advanced OCR
+  -> local file policy check
+  -> Hono signed-upload authorization
+  -> direct authenticated Cloudinary upload
+  -> Hono asset readback and upload-claim verification
+  -> server-side Advanced OCR request
   -> OCR words and bounding boxes
   -> sensitive-text classifier
   -> padded redaction rectangles
@@ -51,8 +53,8 @@ Each part of the stack owns a narrow responsibility:
 
 | Layer | Responsibility |
 | --- | --- |
-| Browser | Select an image and redaction style, then review the result |
-| Hono API | Validate the upload, interpret OCR evidence, classify text, and authorize review |
+| Browser | Validate basic file properties, upload directly to Cloudinary, and review the result |
+| Hono API | Sign constrained uploads, verify the stored asset, interpret OCR evidence, and authorize review |
 | Cloudinary | Store the authenticated original, run OCR, generate the derivative, and persist review context |
 
 The original and redacted result are not two unrelated uploads. Cloudinary stores one authenticated asset, and the redacted version is an eager derived transformation of that asset. That relationship keeps the source, transformation, and review record together.
@@ -76,7 +78,11 @@ cd cloudinary-redact
 npm install
 ```
 
-## Step 1: Enable Cloudinary Advanced OCR
+## Prepare Cloudinary and Hono
+
+The setup phase enables the OCR capability and keeps every credential in the Hono runtime.
+
+### Enable Cloudinary Advanced OCR
 
 In the Cloudinary Console:
 
@@ -89,7 +95,7 @@ This is the add-on used by the `adv_ocr` upload parameter. It is different from 
 
 Cloudinary's [OCR Text Detection and Extraction documentation](https://cloudinary.com/documentation/ocr_text_detection_and_extraction_addon) describes two modes. `adv_ocr` is intended for photos or graphics that contain text, while `adv_ocr:document` is optimized for text-heavy scanned documents. This project uses `adv_ocr` because the input is an application screenshot.
 
-## Step 2: Configure the Hono application
+### Configure the Hono application
 
 Copy the environment template:
 
@@ -130,55 +136,98 @@ app.route('/api/redactions', redactions)
 export default app
 ```
 
-See the complete [`src/index.ts`](https://github.com/musebe/cloudinary-redact/blob/main/src/index.ts). Hono's official [request API](https://hono.dev/docs/api/request) supports multipart fields through `c.req.parseBody()`, and Vercel documents direct support for a default-exported [Hono application](https://vercel.com/docs/frameworks/backend/hono).
+See the complete [`src/index.ts`](https://github.com/musebe/cloudinary-redact/blob/main/src/index.ts). Hono's official [request API](https://hono.dev/docs/api/request) supports the JSON authorization and finalization requests used here, and Vercel documents direct support for a default-exported [Hono application](https://vercel.com/docs/frameworks/backend/hono).
 
-## Step 3: Validate screenshots before OCR
+## Create a secure screenshot-ingestion boundary
 
-Reject malformed input before consuming OCR quota. The route checks the request size, requires an `image` file, and compares the declared MIME type with the file's magic bytes.
+The browser sends image bytes directly to Cloudinary, while Hono controls what may be uploaded and verifies the stored result before OCR begins. This avoids forwarding a multi-megabyte screenshot through a Vercel Function request body.
+
+### Validate the upload intent
+
+The browser rejects unsupported media types, files over 4 MB, and images smaller than 1024 by 768 pixels. It sends only the filename, MIME type, byte size, and decoded dimensions to Hono.
 
 ```typescript
-const body = await context.req.parseBody()
-const image = body.image
-const mode = body.mode === 'blur' ? 'blur' : 'pixelate'
-
-if (!(image instanceof File)) {
-  throw new HttpError(400, 'Add a screenshot using the image field.')
+if (
+  typeof body?.filename !== 'string' ||
+  !validMimeTypes.includes(body.mimeType) ||
+  typeof body.size !== 'number' ||
+  body.size > config.maxUploadBytes ||
+  typeof body.width !== 'number' ||
+  body.width < 1024 ||
+  typeof body.height !== 'number' ||
+  body.height < 768
+) {
+  throw new HttpError(400, 'The screenshot does not satisfy the upload policy.')
 }
-
-const bytes = new Uint8Array(await image.arrayBuffer())
-validateScreenshot(image, bytes, config.maxUploadBytes)
 ```
 
-The validator accepts JPEG, PNG, or WebP and caps uploads at 4 MB. Read the complete [`redaction route`](https://github.com/musebe/cloudinary-redact/blob/main/src/routes/redactions.ts) and [`file validator`](https://github.com/musebe/cloudinary-redact/blob/main/src/security/file.ts).
+These client-supplied properties improve feedback but are not the security boundary. Hono repeats the important checks against Cloudinary's decoded asset record after upload. Read the complete [`redaction routes`](https://github.com/musebe/cloudinary-redact/blob/main/src/routes/redactions.ts).
 
-Magic-byte checking catches simple extension or `Content-Type` mismatches. A higher-risk production service should also consider malware scanning, decompression limits, request rate limits, and image re-encoding.
+### Authorize a constrained direct upload
 
-## Step 4: Upload the original as an authenticated Cloudinary asset
-
-The Hono server streams the bytes to Cloudinary. It assigns a random public ID, places the asset in one Media Library folder, requests OCR, and marks the initial state as processing.
+Hono generates a random public ID and signs a fixed set of Cloudinary upload parameters. The signature allows the browser to perform this upload without receiving the Cloudinary API secret.
 
 ```typescript
-const options: UploadApiOptions = {
+const parameters = {
+  allowed_formats: 'jpg,jpeg,png,webp',
+  asset_folder: SCREENSHOT_ASSET_FOLDER,
+  context: `original_filename=${safeFilename(filename)}|redaction_status=uploaded`,
+  overwrite: 'false',
+  public_id: publicId,
+  tags: 'screenshot-redaction,restricted-original,review-required',
+  timestamp,
+  type: 'authenticated',
+}
+
+const signature = cloudinary.utils.api_sign_request(
+  parameters,
+  config.apiSecret,
+)
+```
+
+The browser posts the file and signed parameters directly to Cloudinary's Upload API. The 4 MB limit is an application policy, not a Cloudinary platform limit. Cloudinary recommends direct browser uploads for large files, while [Vercel recommends client uploads](https://vercel.com/kb/guide/how-to-bypass-vercel-body-size-limit-serverless-functions) when a request could exceed a Function body limit.
+
+The upload deliberately omits `ocr`. Raw OCR output therefore does not return to the browser. See the complete [`createDirectUploadAuthorization` implementation](https://github.com/musebe/cloudinary-redact/blob/main/src/cloudinary/screenshots.ts) and [browser upload client](https://github.com/musebe/cloudinary-redact/blob/main/public/app.js).
+
+The authenticated delivery type matters here. Cloudinary's [media access-control documentation](https://cloudinary.com/documentation/control_access_to_media) states that authenticated originals and derived assets require signed access. The `asset_folder` controls Media Library organization in dynamic-folder environments, while the generated public ID provides a namespace the application can verify and clean up safely.
+
+### Verify the stored asset before OCR
+
+The signing response includes a short-lived, Hash-based Message Authentication Code (HMAC) upload claim bound to the generated public ID. After upload, the browser returns that claim and Cloudinary's immutable `asset_id` to Hono. The server reads the asset through the Admin API and verifies its identity and decoded properties.
+
+```typescript
+const response = await cloudinary.api.resources_by_asset_ids([assetId], {
   resource_type: 'image',
   type: 'authenticated',
-  asset_folder: 'screenshot-redaction/uploads',
-  public_id: `screenshot-redaction/uploads/${randomUUID()}`,
-  overwrite: false,
-  ocr: 'adv_ocr',
-  tags: ['screenshot-redaction', 'restricted-original'],
-  context: { redaction_status: 'processing' },
-}
+  context: true,
+})
+
+const asset = response.resources?.[0]
+const allowed =
+  asset?.public_id === expectedPublicId &&
+  asset?.type === 'authenticated' &&
+  allowedFormats.includes(asset?.format) &&
+  asset?.width >= 1024 && asset?.height >= 768 &&
+  asset?.bytes <= config.maxUploadBytes
 ```
 
-See the complete [`uploadRestrictedScreenshot` function](https://github.com/musebe/cloudinary-redact/blob/main/src/cloudinary/screenshots.ts).
+An asset that fails readback never reaches OCR. The implementation also deletes an invalid asset when it is safely inside the generated redaction namespace. Read [`verifyDirectUpload`](https://github.com/musebe/cloudinary-redact/blob/main/src/cloudinary/screenshots.ts) and the [`upload-claim implementation`](https://github.com/musebe/cloudinary-redact/blob/main/src/security/upload-claim.ts).
 
-The authenticated delivery type matters here. Cloudinary's [media access-control documentation](https://cloudinary.com/documentation/control_access_to_media) states that authenticated originals and derived assets require signed access. The API secret stays in Hono, so the browser cannot create its own upload or delivery signature.
+## Convert OCR evidence into redaction regions
 
-The `asset_folder` determines where the item appears in a dynamic-folder Media Library. The public ID namespace is also set to the same value so records are easy to audit and cleanup can refuse any target outside that prefix. Cloudinary explains the distinction in its [folder modes documentation](https://cloudinary.com/documentation/folder_modes).
+Once Cloudinary confirms the asset, Hono requests Advanced OCR on the authenticated original and keeps the returned text on the server.
 
-## Step 5: Extract words and OCR coordinates
+### Extract words and OCR coordinates
 
-With `ocr: "adv_ocr"`, the upload response includes OCR evidence under `info.ocr.adv_ocr`. Cloudinary returns the detected text plus bounding polygons for individual text elements.
+Hono invokes OCR with an authenticated `explicit` operation. The response includes evidence under `info.ocr.adv_ocr`, including detected text and bounding polygons.
+
+```typescript
+const ocrResult = await cloudinary.uploader.explicit(publicId, {
+  resource_type: 'image',
+  type: 'authenticated',
+  ocr: config.ocrMode,
+})
+```
 
 The parser deliberately treats that response as unknown external data:
 
@@ -200,7 +249,7 @@ for (const page of asArray(advancedOcr.data)) {
 
 The first text annotation is the full-page summary, so the parser skips it and retains the individual words. Read the complete [`OCR parser`](https://github.com/musebe/cloudinary-redact/blob/main/src/ocr/parser.ts).
 
-## Step 6: Detect sensitive text without returning it
+### Detect sensitive text without returning it
 
 The classifier applies category-specific rules to reconstructed OCR lines. Higher-priority API-key and email matches are selected before overlapping phone or account candidates.
 
@@ -222,7 +271,7 @@ Context is important. A long number following `Account:` is more likely to be an
 
 The internal match contains the raw OCR value only long enough to map it to its source tokens. The public response removes `value` and keeps `maskedValue`.
 
-## Step 7: Map each match back to a rectangle
+### Map each match back to a rectangle
 
 OCR engines return word boxes, while a sensitive value may span several tokens. For example, an IBAN can be split at every space. The mapper groups words into visual lines, reconstructs the line text, detects matches, and unions all overlapping token rectangles.
 
@@ -247,7 +296,7 @@ for (const match of detectSensitiveText(text)) {
 
 Six pixels of bounded padding reduce the chance that a character edge remains visible. The full line grouping, punctuation joining, rectangle union, and image-boundary logic are in [`regions.ts`](https://github.com/musebe/cloudinary-redact/blob/main/src/ocr/regions.ts).
 
-## Step 8: Create targeted blur or pixelation regions
+### Create targeted blur or pixelation regions
 
 Each detected rectangle becomes one Cloudinary transformation component:
 
@@ -267,7 +316,11 @@ Cloudinary's [transformation reference](https://cloudinary.com/documentation/tra
 
 Blur and pixelation have different visual tradeoffs. Strong pixelation is easier to notice during review, while a strong blur can fit some product interfaces more naturally. Neither strength should be treated as universally sufficient. Test the final derivative at its delivered resolution and account for small text, scaling, and image compression.
 
-## Step 9: Eagerly generate and sign the derivative
+## Generate reviewable media and persist decisions
+
+Cloudinary now turns the selected rectangles into a protected derivative, while Hono keeps approval as a separate human decision.
+
+### Eagerly generate and sign the derivative
 
 Authenticated assets do not permit unrestricted on-the-fly derived images. The server eagerly creates the exact approved transformation and stores enough context to reconstruct the same URL later.
 
@@ -292,7 +345,7 @@ The application persists the raw transformation string because a derived URL mus
 
 A signed delivery URL authorizes access to the protected asset, but the URL can still be shared. For production use cases that require expiration, revocation, IP constraints, or user-specific access, evaluate Cloudinary token or cookie access controls and their current plan requirements.
 
-## Step 10: Require human review
+### Require human review
 
 Automatic detection produces `review_required`, never `approved`. A reviewer compares the signed original and derivative, then sends an explicit decision:
 
@@ -323,7 +376,7 @@ The cookie contains at most four immutable Cloudinary asset IDs and expires afte
 
 This cookie demonstrates scoped authorization, but it does not identify a person. A production workflow should integrate real identity, roles, audit events, and revocation.
 
-## Step 11: Read the before-and-after gallery from Cloudinary
+### Read the before-and-after gallery from Cloudinary
 
 The compact gallery does not expose every asset in the account. `GET /api/redactions` verifies the cookie, reads only its four asset IDs through the Cloudinary Admin API, and returns signed comparison URLs.
 
@@ -339,7 +392,7 @@ The readback proves that folder placement, transformation metadata, review statu
 
 Admin API operations are rate-limited, so larger systems should cache appropriate read models, avoid account-wide scans, and design around current product-environment limits.
 
-## Step 12: Test with synthetic screenshots
+## Measure the detector with synthetic screenshots
 
 The repository includes 20 deterministic screenshots at 1200 by 900 pixels. They contain 16 labeled findings across email, phone, account-number, and API-key categories, plus negative cases such as dates, order IDs, versions, URLs, and ticket numbers.
 
@@ -385,13 +438,13 @@ For privacy redaction, a false negative can expose information, while a false po
 
 ## Verify the end-to-end result
 
-Start the application:
+Start the application locally:
 
 ```bash
 npm run dev
 ```
 
-Then open the local application in your browser on port 3000 and use one of the screenshots in [`demo-assets/screenshots`](https://github.com/musebe/cloudinary-redact/tree/main/demo-assets/screenshots).
+Then open the local application in your browser on port 3000 and use one of the screenshots in [`demo-assets/screenshots`](https://github.com/musebe/cloudinary-redact/tree/main/demo-assets/screenshots). You can also test the same workflow in the [live Cloudinary Redact demo](https://cloudinary-redact.vercel.app/).
 
 Verify the following:
 
@@ -409,7 +462,7 @@ You can also check service configuration without exposing secrets:
 curl http://localhost:3000/api/health
 ```
 
-The verified project currently passes TypeScript validation and 20 automated tests. A live Cloudinary test also confirmed authenticated upload, email detection, targeted pixelation, signed original and derivative delivery, and Admin API gallery readback.
+The verified project currently passes TypeScript validation and 24 automated tests. The tests cover upload-signature constraints, short-lived claim validation, OCR parsing, sensitive-value detection, redaction geometry, browser behavior, and review authorization. A live Cloudinary test also confirmed authenticated upload, email detection, targeted pixelation, signed original and derivative delivery, and Admin API gallery readback.
 
 ## Security limitations and production hardening
 
@@ -429,7 +482,7 @@ Do not log OCR text, raw matches, Cloudinary credentials, signed URLs, or upload
 
 ### How can I automatically hide email addresses and account numbers in uploaded screenshots?
 
-Upload the screenshot to an authenticated Cloudinary asset with `ocr: "adv_ocr"`, classify the returned OCR text on the server, map each match to its OCR word coordinates, and eagerly generate a signed `blur_region` or `pixelate_region` derivative. Require review before treating that derivative as approved.
+Authorize a constrained authenticated upload, send the screenshot directly from the browser to Cloudinary, and verify the stored asset through Hono. Then request `adv_ocr` on the server, classify its text, map each match to OCR coordinates, and eagerly generate a signed `blur_region` or `pixelate_region` derivative. Require review before treating that derivative as approved.
 
 ### Can Cloudinary OCR redact only sensitive text?
 
@@ -453,6 +506,6 @@ No. That score applies only to the deterministic classifier using clean source t
 
 ## Conclusion
 
-Screenshot redaction works best as a traceable media pipeline, not a single regular expression. Hono validates and classifies the request, Cloudinary keeps the original behind authenticated delivery, Advanced OCR supplies the words and coordinates, and targeted transformations create a reviewable derivative without hiding the entire interface.
+Screenshot redaction works best as a traceable media pipeline, not a single regular expression. Hono signs a constrained upload and verifies the stored asset, Cloudinary keeps the original behind authenticated delivery, Advanced OCR supplies the words and coordinates, and targeted transformations create a reviewable derivative without hiding the entire interface.
 
 The critical design choice is the review boundary. A detected region is evidence, not proof that every sensitive value was found. Keeping the original restricted, masking API output, measuring the complete OCR pipeline, and requiring approval turns a convenient image transformation into a more defensible operational control.
