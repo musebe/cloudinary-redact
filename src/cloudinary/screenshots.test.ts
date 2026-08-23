@@ -1,11 +1,14 @@
-import { describe, expect, test } from 'vitest'
+import { afterEach, describe, expect, test, vi } from 'vitest'
 import { v2 as cloudinary } from 'cloudinary'
 
 import {
   buildRedactionTransformation,
+  createDirectUploadAuthorization,
   SCREENSHOT_ASSET_FOLDER,
   SCREENSHOT_PUBLIC_ID_PREFIX,
 } from './screenshots.js'
+
+afterEach(() => vi.unstubAllEnvs())
 
 describe('targeted Cloudinary transformations', () => {
   test('uses one matching Cloudinary asset folder and public ID namespace', () => {
@@ -13,6 +16,26 @@ describe('targeted Cloudinary transformations', () => {
     expect(SCREENSHOT_PUBLIC_ID_PREFIX).toBe(
       `${SCREENSHOT_ASSET_FOLDER}/`,
     )
+  })
+
+  test('signs a restricted direct upload without exposing the API secret', () => {
+    vi.stubEnv('CLOUDINARY_CLOUD_NAME', 'demo-cloud')
+    vi.stubEnv('CLOUDINARY_API_KEY', 'demo-key')
+    vi.stubEnv('CLOUDINARY_API_SECRET', 'server-only-secret')
+    vi.stubEnv('DEMO_SESSION_SECRET', 'a-review-secret-that-is-long-enough')
+
+    const authorization = createDirectUploadAuthorization('support screen.png')
+
+    expect(authorization.uploadUrl).toBe(
+      'https://api.cloudinary.com/v1_1/demo-cloud/image/upload',
+    )
+    expect(authorization.parameters).toMatchObject({
+      asset_folder: SCREENSHOT_ASSET_FOLDER,
+      overwrite: 'false',
+      type: 'authenticated',
+    })
+    expect(authorization.parameters).not.toHaveProperty('ocr')
+    expect(JSON.stringify(authorization)).not.toContain('server-only-secret')
   })
 
   test('replays persisted transformation syntax as a raw transformation', () => {

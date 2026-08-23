@@ -1,19 +1,22 @@
 import {
   createReviewDerivative,
+  requestScreenshotOcr,
   SCREENSHOT_ASSET_FOLDER,
   type RedactionMode,
+  type ScreenshotAsset,
   uploadRestrictedScreenshot,
+  verifyDirectUpload,
 } from '../cloudinary/screenshots.js'
 import { extractOcrEvidence } from '../ocr/parser.js'
 import { buildRedactionRegions } from '../ocr/regions.js'
 
-export async function processScreenshot(options: {
-  bytes: Uint8Array
-  filename: string
+async function buildRedactionResult(options: {
+  uploaded: ScreenshotAsset
+  ocrResponse: unknown
   mode: RedactionMode
 }) {
-  const uploaded = await uploadRestrictedScreenshot(options.bytes, options.filename)
-  const ocr = extractOcrEvidence(uploaded.raw)
+  const { uploaded } = options
+  const ocr = extractOcrEvidence(options.ocrResponse)
 
   if (ocr.status !== 'complete') {
     throw new Error(`Cloudinary OCR did not complete. Status: ${ocr.status}`)
@@ -53,4 +56,34 @@ export async function processScreenshot(options: {
     originalUrl: derivative.originalUrl,
     redactedUrl: derivative.redactedUrl,
   }
+}
+
+export async function processScreenshot(options: {
+  bytes: Uint8Array
+  filename: string
+  mode: RedactionMode
+}) {
+  const uploaded = await uploadRestrictedScreenshot(options.bytes, options.filename)
+  return buildRedactionResult({
+    uploaded,
+    ocrResponse: uploaded.raw,
+    mode: options.mode,
+  })
+}
+
+export async function processDirectScreenshot(options: {
+  assetId: string
+  expectedPublicId: string
+  mode: RedactionMode
+}) {
+  const uploaded = await verifyDirectUpload(
+    options.assetId,
+    options.expectedPublicId,
+  )
+  const ocrResponse = await requestScreenshotOcr(uploaded.publicId)
+  return buildRedactionResult({
+    uploaded,
+    ocrResponse,
+    mode: options.mode,
+  })
 }

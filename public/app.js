@@ -42,6 +42,41 @@ async function validateFile(file) {
   if (dimensions.width < 1024 || dimensions.height < 768) {
     throw new Error('Cloudinary OCR requires a screenshot of at least 1024 × 768.')
   }
+  return dimensions
+}
+
+async function readJsonResponse(response, fallbackMessage) {
+  const contentType = response.headers.get('content-type') || ''
+  if (!contentType.includes('application/json')) {
+    const requestId = response.headers.get('x-vercel-id')
+    const suffix = requestId ? ` Request ID: ${requestId}` : ''
+    throw new Error(`${fallbackMessage} HTTP ${response.status}.${suffix}`)
+  }
+
+  const payload = await response.json().catch(() => null)
+  if (!response.ok) {
+    throw new Error(
+      typeof payload?.error === 'string' ? payload.error : fallbackMessage,
+    )
+  }
+  if (!payload) throw new Error(fallbackMessage)
+  return payload
+}
+
+async function uploadToCloudinary(file, authorization) {
+  const uploadBody = new FormData()
+  uploadBody.append('file', file)
+  uploadBody.append('api_key', authorization.apiKey)
+  uploadBody.append('signature', authorization.signature)
+  for (const [key, value] of Object.entries(authorization.parameters)) {
+    uploadBody.append(key, String(value))
+  }
+
+  const response = await fetch(authorization.uploadUrl, {
+    method: 'POST',
+    body: uploadBody,
+  })
+  return readJsonResponse(response, 'The restricted Cloudinary upload failed.')
 }
 
 function renderFindings(findings) {
@@ -133,8 +168,7 @@ function renderGallery(records) {
 async function loadGallery() {
   try {
     const response = await fetch('/api/redactions')
-    const payload = await response.json()
-    if (!response.ok) throw new Error(payload.error || 'Gallery unavailable.')
+    const payload = await readJsonResponse(response, 'Gallery unavailable.')
     renderGallery(payload.data)
     galleryStatus.textContent = ''
   } catch {
@@ -149,17 +183,43 @@ form.addEventListener('submit', async (event) => {
   result.hidden = true
 
   try {
-    await validateFile(file)
-    // Disabled form controls are omitted, so capture the selected file first.
-    const formData = new FormData(form)
+    const dimensions = await validateFile(file)
+    const mode = new FormData(form).get('mode') === 'blur' ? 'blur' : 'pixelate'
     setBusy(true)
-    requestStatus.textContent = 'Uploading securely and running Cloudinary OCR…'
-    const response = await fetch('/api/redactions', {
+    requestStatus.textContent = 'Preparing a signed restricted upload…'
+    const signatureResponse = await fetch('/api/redactions/sign', {
       method: 'POST',
-      body: formData,
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        filename: file.name,
+        mimeType: file.type,
+        size: file.size,
+        width: dimensions.width,
+        height: dimensions.height,
+      }),
     })
-    const payload = await response.json()
-    if (!response.ok) throw new Error(payload.error || 'The screenshot could not be processed.')
+    const signaturePayload = await readJsonResponse(
+      signatureResponse,
+      'The upload could not be authorized.',
+    )
+
+    requestStatus.textContent = 'Uploading the restricted original to Cloudinary…'
+    const uploaded = await uploadToCloudinary(file, signaturePayload.data)
+
+    requestStatus.textContent = 'Running Cloudinary OCR and targeted redaction…'
+    const finalizeResponse = await fetch('/api/redactions/finalize', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        assetId: uploaded.asset_id,
+        uploadClaim: signaturePayload.data.uploadClaim,
+        mode,
+      }),
+    })
+    const payload = await readJsonResponse(
+      finalizeResponse,
+      'The screenshot could not be processed.',
+    )
 
     renderResult(payload.data)
     await loadGallery()
@@ -185,8 +245,7 @@ async function submitReview(decision) {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ decision }),
     })
-    const payload = await response.json()
-    if (!response.ok) throw new Error(payload.error || 'The review could not be saved.')
+    const payload = await readJsonResponse(response, 'The review could not be saved.')
 
     reviewStatus.textContent = payload.data.status === 'approved' ? 'Approved' : 'Rejected'
     requestStatus.textContent = 'Review decision saved to the Cloudinary asset.'

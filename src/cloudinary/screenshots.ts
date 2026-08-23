@@ -7,12 +7,15 @@ import { getCloudinary } from './client.js'
 
 export type RedactionMode = 'blur' | 'pixelate'
 
-export type UploadedScreenshot = {
-  raw: UploadApiResponse
+export type ScreenshotAsset = {
   assetId: string
   publicId: string
   width: number
   height: number
+}
+
+export type UploadedScreenshot = ScreenshotAsset & {
+  raw: UploadApiResponse
 }
 
 export type ReviewStatus = 'review_required' | 'approved' | 'rejected'
@@ -38,6 +41,83 @@ function readContextValues(value: unknown): ContextValues {
 
 function safeFilename(filename: string): string {
   return filename.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 120)
+}
+
+export function createDirectUploadAuthorization(filename: string) {
+  const cloudinary = getCloudinary()
+  const config = getRuntimeConfig()
+  const publicId = `${SCREENSHOT_PUBLIC_ID_PREFIX}${randomUUID()}`
+  const timestamp = Math.floor(Date.now() / 1000)
+  const parameters = {
+    allowed_formats: 'jpg,jpeg,png,webp',
+    asset_folder: SCREENSHOT_ASSET_FOLDER,
+    context: `original_filename=${safeFilename(filename)}|redaction_status=uploaded`,
+    overwrite: 'false',
+    public_id: publicId,
+    tags: 'screenshot-redaction,restricted-original,review-required',
+    timestamp,
+    type: 'authenticated',
+  }
+
+  return {
+    uploadUrl: `https://api.cloudinary.com/v1_1/${config.cloudName}/image/upload`,
+    apiKey: config.apiKey,
+    signature: cloudinary.utils.api_sign_request(parameters, config.apiSecret),
+    parameters,
+    publicId,
+  }
+}
+
+function asFiniteNumber(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
+
+export async function verifyDirectUpload(
+  assetId: string,
+  expectedPublicId: string,
+): Promise<ScreenshotAsset> {
+  const config = getRuntimeConfig()
+  const response = await getCloudinary().api.resources_by_asset_ids([assetId], {
+    resource_type: 'image',
+    type: 'authenticated',
+    context: true,
+  })
+  const asset = (response.resources?.[0] || {}) as Record<string, unknown>
+  const publicId = typeof asset.public_id === 'string' ? asset.public_id : ''
+  const width = asFiniteNumber(asset.width)
+  const height = asFiniteNumber(asset.height)
+  const bytes = asFiniteNumber(asset.bytes)
+  const format = typeof asset.format === 'string' ? asset.format : ''
+  const isExpectedAsset =
+    publicId === expectedPublicId &&
+    publicId.startsWith(SCREENSHOT_PUBLIC_ID_PREFIX) &&
+    asset.resource_type === 'image' &&
+    asset.type === 'authenticated' &&
+    ['jpg', 'jpeg', 'png', 'webp'].includes(format) &&
+    width !== null &&
+    height !== null &&
+    width >= 1024 &&
+    height >= 768 &&
+    bytes !== null &&
+    bytes <= config.maxUploadBytes
+
+  if (!isExpectedAsset || width === null || height === null) {
+    if (publicId.startsWith(SCREENSHOT_PUBLIC_ID_PREFIX)) {
+      await deleteRestrictedScreenshot(publicId)
+    }
+    throw new Error('The direct upload did not satisfy the screenshot policy.')
+  }
+
+  return { assetId, publicId, width, height }
+}
+
+export async function requestScreenshotOcr(publicId: string) {
+  const { ocrMode } = getRuntimeConfig()
+  return getCloudinary().uploader.explicit(publicId, {
+    resource_type: 'image',
+    type: 'authenticated',
+    ocr: ocrMode,
+  })
 }
 
 function parseRedactionRecord(assetValue: unknown) {
